@@ -1,5 +1,6 @@
 {
-  "name": "outl1ne/nova-detached-filters",
+  "name": "sinensia/nova-detached-filters",
+  "type": "library",
   "description": "This Laravel Nova package allows you to detach filters from the filter dropdown",
   "keywords": [
     "laravel",
