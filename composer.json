@@ -1,12 +1,16 @@
 {
-    "name": "outl1ne/nova-detached-filters",
-    "description": "This Laravel Nova package allows you to detach filters from the filter dropdown",
+    "name": "sinensia/nova-detached-filters",
+    "description": "Enhanced Laravel Nova detached filters with tabs and filter badges.",
     "keywords": [
         "laravel",
         "nova",
-        "card",
-        "filter",
-        "persist"
+        "nova-card",
+        "filters",
+        "tabs",
+        "ui",
+        "ux",
+        "tailwind",
+        "nova-component"
     ],
     "license": "MIT",
     "authors": [
@@ -24,12 +28,17 @@
             "name": "Outl1ne",
             "email": "info@outl1ne.com",
             "role": "Maintainer"
+        },
+        {
+            "name": "sinensia",
+            "homepage": "https://sinensia.com",
+            "role": "Developer"
         }
     ],
     "require": {
-        "php": ">=8.0.0",
-        "laravel/nova": "~4.0",
-        "nova-kit/nova-packages-tool": "^1.14"
+        "php": ">=8.0",
+        "laravel/framework": "^9.0|^10.0|^11.0",
+        "laravel/nova": "^4.0|^5.0"
     },
     "require-dev": {
         "laravel/pint": "^0.2.1",
