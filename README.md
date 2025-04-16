@@ -10,8 +10,14 @@ This [Laravel Nova](https://nova.laravel.com/) package allows you to place filte
 - Saving filter state
 - Reset all and single filters
 - Customizable
+
   - Change width of individual filter
   - Create columns for stacked filters
+
+  ## Extended Features (by SINENSIA)
+
+  - Group filters into tabbed sections
+  - Active filter count badge per tab (optional)
 
 ## Screenshots
 
@@ -19,12 +25,14 @@ This [Laravel Nova](https://nova.laravel.com/) package allows you to place filte
 
 ![Small Cards](docs/Small.png)
 
+![Tabs](docs/tabs.png)
+
 ## Installation
 
 Install the package in a Laravel Nova project via Composer:
 
 ```bash
-composer require outl1ne/nova-detached-filters
+composer require sinensia/nova-detached-filters
 ```
 
 ## Usage
@@ -219,6 +227,74 @@ public function cards(Request $request)
 }
 ```
 
+### Grouping Filters into Tabs
+
+You can optionally group filters into tabs using `DetachedFilterTabGroup`:
+
+```php
+use Outl1ne\NovaDetachedFilters\DetachedFilterTabGroup;
+
+new NovaDetachedFilters([
+    new DetachedFilterTabGroup('Main Info', [
+        new MyFilter(),
+        new AnotherFilter(),
+    ]),
+    new DetachedFilterTabGroup('Advanced Search', [
+        new MyOtherFilter(),
+    ]),
+])
+```
+
+Each `DetachedFilterTabGroup` will render a separate tab in the UI. You can combine tabbed and non-tabbed filters freely.
+
+#### Show Active Filter Badge (default: true)
+
+A badge will appear on each tab indicating the number of active filters. You can disable this feature:
+
+```php
+->withMeta(['showFilterBadge' => false])
+```
+
+---
+
+### Filter Column Grouping (legacy usage)
+
+You can still use `DetachedFilterColumn` to organize filters in columns:
+
+```php
+use Outl1ne\NovaDetachedFilters\DetachedFilterColumn;
+
+new NovaDetachedFilters([
+    new DetachedFilterColumn([
+        new MyFilter(),
+        new AnotherFilter(),
+    ], 'w-1/2')
+])
+```
+
+---
+
+### Tailwind Width Control
+
+You can pass custom Tailwind widths via `withMeta(['width' => 'w-1/3'])` per filter. These will be applied correctly in responsive grid layouts.
+
+---
+
+### Development
+
+To rebuild assets:
+
+```bash
+npm install
+npm run dev
+```
+
+---
+
+### License
+
+MIT © [Outl1ne](https://github.com/outl1ne) / Extended by [Sinensia](https://github.com/SINENSIA) with tab support.
+
 ### Demo
 
 You can preview the application via workbench by running the following commands on your local machine.
@@ -232,7 +308,3 @@ composer serve
 ## Credits
 
 - [Kaspar Rosin](https://github.com/kasparrosin)
-
-## License
-
-Nova Detached Filters is open-sourced software licensed under the [MIT license](LICENSE.md).

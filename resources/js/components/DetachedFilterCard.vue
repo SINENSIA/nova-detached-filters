@@ -25,30 +25,80 @@
         <CollapseIcon :class="{ 'o1-rotate-90': isCollapsed, 'o1-rotate-[270deg]': !isCollapsed }" />
       </ActionButton>
     </div>
-    <div class="px-3 py-4 flex flex-wrap max-h-screen opacity-100" :class="{ hidden: isCollapsed }">
-      <div class="flex flex-wrap" :class="getWidth(item)" v-for="item in card.filters" :key="item.key">
-        <!-- Single Filter -->
-        <nova-detached-filter
-          v-if="isFilterComponent(item)"
-          :width="'w-full'"
-          :filter="item"
-          :resource-name="resourceName"
-          @handle-filter-changed="handleFilterChanged"
-          @reset-filter="resetFilter"
-        />
 
-        <!-- Filter Column -->
-        <nova-detached-filter
-          v-else
-          v-for="filter in item.filters"
-          v-bind:key="filter.key"
-          :width="getWidth(filter)"
-          :filter="filter"
-          :resource-name="resourceName"
-          @handle-filter-changed="handleFilterChanged"
-          @reset-filter="resetFilter"
-        />
+    <div class="px-3 py-4 max-h-screen opacity-100 w-full" :class="{ hidden: isCollapsed }">
+      <!-- Tabs header -->
+      <div v-if="hasTabs" class="w-full mb-3 border-b border-gray-200 overflow-x-auto whitespace-nowrap">
+        <nav class="flex flex-nowrap text-sm font-medium">
+          <button
+            v-for="(tab, index) in tabGroups"
+            :key="'tab-' + index"
+            class="mr-4 px-4 py-2 border-b-2 whitespace-nowrap relative"
+            :class="{
+              'border-blue-500 text-blue-600 font-semibold bg-white shadow-md rounded-t': activeTab === index,
+              'border-transparent text-gray-500 hover:text-gray-700': activeTab !== index,
+            }"
+            @click="activeTab = index"
+          >
+            {{ tab.name }}
+            <span
+              v-if="card.meta?.showFilterBadge !== false && countActiveFilters(tab.filters) > 0"
+              class="absolute top-0 right-0 mt-0.5 mr-1.5 bg-red-500 text-white text-xs leading-tight font-semibold rounded-full px-1.5"
+            >
+              {{ countActiveFilters(tab.filters) }}
+            </span>
+          </button>
+        </nav>
       </div>
+
+      <!-- Filters grouped in tabs -->
+      <template v-if="hasTabs">
+        <div
+          class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"
+          v-for="(group, i) in tabGroups"
+          v-show="i === activeTab"
+          :key="'tab-content-' + i"
+        >
+          <div class="w-full" v-for="filter in group.filters" :key="filter.key">
+            <nova-detached-filter
+              :width="'w-full'"
+              :filter="filter"
+              :resource-name="resourceName"
+              @handle-filter-changed="handleFilterChanged"
+              @reset-filter="resetFilter"
+            />
+          </div>
+        </div>
+      </template>
+
+      <!-- Default filters layout (no tabs) -->
+      <template v-else>
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          <div class="w-full" v-for="item in card.filters" :key="item.key">
+            <!-- Single Filter -->
+            <nova-detached-filter
+              v-if="isFilterComponent(item)"
+              :width="'w-full'"
+              :filter="item"
+              :resource-name="resourceName"
+              @handle-filter-changed="handleFilterChanged"
+              @reset-filter="resetFilter"
+            />
+
+            <!-- Filter Column -->
+            <nova-detached-filter
+              v-else
+              v-for="filter in item.filters"
+              v-bind:key="filter.key"
+              :width="'w-full'"
+              :filter="filter"
+              :resource-name="resourceName"
+              @handle-filter-changed="handleFilterChanged"
+              @reset-filter="resetFilter"
+            />
+          </div>
+        </div>
+      </template>
     </div>
   </card>
 </template>
@@ -74,6 +124,7 @@ export default {
 
     isPersisting: false,
     isCollapsed: false,
+    activeTab: 0,
   }),
 
   created() {
@@ -94,7 +145,34 @@ export default {
     if (!this.card.showPerPageInMenu) this.perPageDropdownStyle(false);
   },
 
+  computed: {
+    hasAnyActions() {
+      return this.card.withReset || this.card.withToggle || this.card.persistFilters;
+    },
+    tabGroups() {
+      return this.card.filters?.filter(f => f.isTabGroup) || [];
+    },
+    hasTabs() {
+      return this.tabGroups.length > 0;
+    },
+  },
+
   methods: {
+    tabHasActiveFilters(filters) {
+      return this.countActiveFilters(filters) > 0;
+    },
+
+    countActiveFilters(filters) {
+      return filters.reduce((total, filter) => {
+        try {
+          const filterInStore = this.$store.getters[`${this.resourceName}/getFilter`](filter.class);
+          return total + (filterInStore?.currentValue != null && filterInStore?.currentValue !== '' ? 1 : 0);
+        } catch (e) {
+          return total;
+        }
+      }, 0);
+    },
+
     getWidth(filter) {
       if (filter.width) return filter.width;
       return 'w-auto';
@@ -151,19 +229,15 @@ export default {
       this.filterChanged();
 
       if (this.isPersisting) {
-        // Get updated filter from $store;
         const updatedFilter = this.getFilter(filter.class);
         if (!updatedFilter) return;
-        // Get filter index in localStorage;
         const filterIndex = this.persistedFilters[this.resourceName].findIndex(f => filter.class === f.filterClass);
         if (filterIndex == null || filterIndex < 0 || !this.persistedFilters[this.resourceName][filterIndex]) {
-          // If key-value pair doesn't exist in localStorage, save new
           this.persistedFilters[this.resourceName].push({
             filterClass: filter.class,
             value: updatedFilter.currentValue,
           });
         } else {
-          // If exists, update value
           this.persistedFilters[this.resourceName][filterIndex].value = updatedFilter.currentValue;
         }
 
@@ -191,9 +265,6 @@ export default {
       this.clearSelectedFilters();
     },
 
-    /**
-     * Load persisted filters from existing filters
-     */
     loadPersistedFromFilters() {
       this.getFilters().forEach(filterItem => {
         this.persistedFilters[this.resourceName].push({
@@ -205,9 +276,6 @@ export default {
       localStorage.setItem('PERSISTED_DETACHED_FILTERS', JSON.stringify(this.persistedFilters));
     },
 
-    /**
-     * Remove or add dropdown per-page filter style tag to head
-     */
     perPageDropdownStyle(addStyle) {
       const css = "div[dusk='filter-per-page'] { display: none !important }";
       const head = document.head || document.getElementsByTagName('head')[0];
@@ -227,12 +295,6 @@ export default {
     initialiseIsCollapsed() {
       if (!this.collapsedResources || !this.collapsedResources[this.resourceName]) return (this.isCollapsed = false);
       this.isCollapsed = this.collapsedResources[this.resourceName];
-    },
-  },
-
-  computed: {
-    hasAnyActions() {
-      return this.card.withReset || this.card.withToggle || this.card.persistFilters;
     },
   },
 };
