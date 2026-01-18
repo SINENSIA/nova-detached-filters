@@ -1,13 +1,13 @@
 <template>
   <div class="relative flex h-auto opacity-100 nova-detached-filter" :class="width">
-    <component
-      :resource-name="resourceName"
+    <!-- NOVA renderer estable: no dependas de filter.component -->
+    <Filter
       :key="resourceName + ':' + filter.class"
-      :filter-key="filter.class"
-      :is="filter.component"
-      :lens="null"
-      class="py-2"
+      :filter="filter"
+      :resource-name="resourceName"
+      class="py-2 w-full"
       @change="$emit('handle-filter-changed', filter)"
+      @input="$emit('handle-filter-changed', filter)"
       @update:modelValue="$emit('handle-filter-changed', filter)"
     />
 
@@ -24,10 +24,12 @@ import ActionButton from './ActionButton';
 import { ResetIcon } from './icons';
 
 export default {
+  name: 'NovaDetachedFilter',
   components: { ActionButton, ResetIcon },
-  props: ['filter', 'width', 'resourceName'],
-  mounted() {
-    console.log('[DetachedFilter] is=', this.filter?.component, 'class=', this.filter?.class);
+  props: {
+    filter: { type: Object, required: true },
+    width: { type: String, default: 'w-full' },
+    resourceName: { type: String, required: true },
   },
 };
 </script>
@@ -36,7 +38,6 @@ export default {
 .nova-detached-filter {
   h3 {
     margin-bottom: 2px;
-
     white-space: nowrap;
     text-overflow: ellipsis;
     overflow: hidden;
