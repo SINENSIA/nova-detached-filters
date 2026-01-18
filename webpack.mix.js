@@ -3,7 +3,20 @@ let mix = require('laravel-mix');
 let tailwindcss = require('tailwindcss');
 let postcssImport = require('postcss-import');
 
-mix.extend('nova', new require('laravel-nova-devtool'));
+let NovaDevtool = null;
+try {
+  NovaDevtool = require('laravel-nova-devtool');
+} catch (error) {
+  NovaDevtool = null;
+}
+
+if (NovaDevtool) {
+  mix.extend('nova', new NovaDevtool());
+} else {
+  mix.extend('nova', {
+    register() {},
+  });
+}
 
 mix
   .setPublicPath('dist')
@@ -12,5 +25,12 @@ mix
   .postCss('resources/css/entry.css', 'dist/css/', [postcssImport(), tailwindcss('tailwind.config.js')])
   .nova('outl1ne/nova-detached-filters')
   .alias({
-    'laravel-nova-mixins': path.join(__dirname, 'vendor/laravel/nova/resources/js/mixins'),
+    'laravel-nova-mixins':
+      process.env.NOVA_MIXINS_PATH ||
+      path.resolve(__dirname, '../eoelitev2/vendor/laravel/nova/resources/js/mixins'),
+  })
+  .webpackConfig({
+    resolve: {
+      modules: [path.resolve(__dirname, 'node_modules'), 'node_modules'],
+    },
   });
