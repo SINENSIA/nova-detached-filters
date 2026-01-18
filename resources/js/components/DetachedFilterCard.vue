@@ -159,11 +159,28 @@ export default {
       return this.countActiveFilters(filters) > 0;
     },
 
+    flattenFilters(filters) {
+      return filters.reduce((acc, filter) => {
+        if (filter?.filters) return acc.concat(this.flattenFilters(filter.filters));
+        acc.push(filter);
+        return acc;
+      }, []);
+    },
+
+    isActiveFilterValue(value) {
+      if (value == null || value === '') return false;
+      if (Array.isArray(value)) return value.length > 0;
+      if (typeof value === 'object') return Object.keys(value).length > 0;
+      if (typeof value === 'boolean') return value;
+      return true;
+    },
+
     countActiveFilters(filters) {
-      return filters.reduce((total, filter) => {
+      const flatFilters = this.flattenFilters(filters || []);
+      return flatFilters.reduce((total, filter) => {
         try {
           const filterInStore = this.$store.getters[`${this.resourceName}/getFilter`](filter.class);
-          return total + (filterInStore?.currentValue != null && filterInStore?.currentValue !== '' ? 1 : 0);
+          return total + (this.isActiveFilterValue(filterInStore?.currentValue) ? 1 : 0);
         } catch (e) {
           return total;
         }
