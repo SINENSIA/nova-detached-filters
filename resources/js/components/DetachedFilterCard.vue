@@ -59,8 +59,20 @@
           v-show="i === activeTab"
           :key="'tab-content-' + i"
         >
-          <div class="w-full" v-for="filter in group.filters" :key="filter.key">
+          <div class="w-full" v-for="item in group.filters" :key="item.key">
             <nova-detached-filter
+              v-if="isFilterComponent(item)"
+              :width="'w-full'"
+              :filter="item"
+              :resource-name="resourceName"
+              @handle-filter-changed="handleFilterChanged"
+              @reset-filter="resetFilter"
+            />
+
+            <nova-detached-filter
+              v-else
+              v-for="filter in item.filters"
+              v-bind:key="filter.key"
               :width="'w-full'"
               :filter="filter"
               :resource-name="resourceName"
