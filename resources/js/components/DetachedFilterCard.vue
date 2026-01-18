@@ -162,11 +162,36 @@ export default {
       return this.countActiveFilters(filters) > 0;
     },
 
+    isEmptyValue(value) {
+      if (value === undefined || value === null) return true;
+      if (Array.isArray(value)) return value.length === 0;
+      if (typeof value === 'string') return value.trim() === '';
+      if (typeof value === 'object') return Object.keys(value).length === 0;
+      return false;
+    },
+
+    normalizeValue(value) {
+      if (value === undefined || value === null) return null;
+      if (Array.isArray(value)) return value.length ? value : null;
+      if (typeof value === 'string') {
+        const trimmed = value.trim();
+        return trimmed === '' ? null : trimmed;
+      }
+      if (typeof value === 'object') return Object.keys(value).length ? value : null;
+      return value;
+    },
+
     countActiveFilters(filters) {
       return filters.reduce((total, filter) => {
         try {
           const filterInStore = this.$store.getters[`${this.resourceName}/getFilter`](filter.class);
-          return total + (filterInStore?.currentValue != null && filterInStore?.currentValue !== '' ? 1 : 0);
+          const originalFilter = this.$store.getters[`${this.resourceName}/getOriginalFilter`](filter.class);
+          const originalValue = JSON.stringify(this.normalizeValue(originalFilter?.currentValue));
+          const currentValue = JSON.stringify(this.normalizeValue(filterInStore?.currentValue));
+          if (currentValue === originalValue || this.isEmptyValue(filterInStore?.currentValue)) {
+            return total;
+          }
+          return total + 1;
         } catch (e) {
           return total;
         }
@@ -179,9 +204,11 @@ export default {
     },
 
     resetFilter(filter) {
+      const originalFilter = this.$store.getters[`${this.resourceName}/getOriginalFilter`](filter.class);
+      const originalValue = originalFilter?.currentValue ?? null;
       this.$store.commit(`${this.resourceName}/updateFilterState`, {
         filterClass: filter.class,
-        value: null,
+        value: originalValue,
       });
 
       this.handleFilterChanged(filter);
@@ -232,7 +259,13 @@ export default {
         const updatedFilter = this.getFilter(filter.class);
         if (!updatedFilter) return;
         const filterIndex = this.persistedFilters[this.resourceName].findIndex(f => filter.class === f.filterClass);
-        if (filterIndex == null || filterIndex < 0 || !this.persistedFilters[this.resourceName][filterIndex]) {
+        const isEmpty = this.isEmptyValue(updatedFilter.currentValue);
+
+        if (isEmpty) {
+          if (filterIndex != null && filterIndex >= 0) {
+            this.persistedFilters[this.resourceName].splice(filterIndex, 1);
+          }
+        } else if (filterIndex == null || filterIndex < 0 || !this.persistedFilters[this.resourceName][filterIndex]) {
           this.persistedFilters[this.resourceName].push({
             filterClass: filter.class,
             value: updatedFilter.currentValue,
@@ -267,10 +300,12 @@ export default {
 
     loadPersistedFromFilters() {
       this.getFilters().forEach(filterItem => {
-        this.persistedFilters[this.resourceName].push({
-          filterClass: filterItem.class,
-          value: filterItem.currentValue,
-        });
+        if (!this.isEmptyValue(filterItem.currentValue)) {
+          this.persistedFilters[this.resourceName].push({
+            filterClass: filterItem.class,
+            value: filterItem.currentValue,
+          });
+        }
       });
 
       localStorage.setItem('PERSISTED_DETACHED_FILTERS', JSON.stringify(this.persistedFilters));

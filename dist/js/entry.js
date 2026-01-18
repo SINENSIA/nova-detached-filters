@@ -349,12 +349,35 @@ __webpack_require__.r(__webpack_exports__);
     tabHasActiveFilters: function tabHasActiveFilters(filters) {
       return this.countActiveFilters(filters) > 0;
     },
+    isEmptyValue: function isEmptyValue(value) {
+      if (value === undefined || value === null) return true;
+      if (Array.isArray(value)) return value.length === 0;
+      if (typeof value === 'string') return value.trim() === '';
+      if (typeof value === 'object') return Object.keys(value).length === 0;
+      return false;
+    },
+    normalizeValue: function normalizeValue(value) {
+      if (value === undefined || value === null) return null;
+      if (Array.isArray(value)) return value.length ? value : null;
+      if (typeof value === 'string') {
+        var trimmed = value.trim();
+        return trimmed === '' ? null : trimmed;
+      }
+      if (typeof value === 'object') return Object.keys(value).length ? value : null;
+      return value;
+    },
     countActiveFilters: function countActiveFilters(filters) {
       var _this = this;
       return filters.reduce(function (total, filter) {
         try {
           var filterInStore = _this.$store.getters["".concat(_this.resourceName, "/getFilter")](filter["class"]);
-          return total + ((filterInStore === null || filterInStore === void 0 ? void 0 : filterInStore.currentValue) != null && (filterInStore === null || filterInStore === void 0 ? void 0 : filterInStore.currentValue) !== '' ? 1 : 0);
+          var originalFilter = _this.$store.getters["".concat(_this.resourceName, "/getOriginalFilter")](filter["class"]);
+          var originalValue = JSON.stringify(_this.normalizeValue(originalFilter === null || originalFilter === void 0 ? void 0 : originalFilter.currentValue));
+          var currentValue = JSON.stringify(_this.normalizeValue(filterInStore === null || filterInStore === void 0 ? void 0 : filterInStore.currentValue));
+          if (currentValue === originalValue || _this.isEmptyValue(filterInStore === null || filterInStore === void 0 ? void 0 : filterInStore.currentValue)) {
+            return total;
+          }
+          return total + 1;
         } catch (e) {
           return total;
         }
@@ -365,9 +388,11 @@ __webpack_require__.r(__webpack_exports__);
       return 'w-auto';
     },
     resetFilter: function resetFilter(filter) {
+      var originalFilter = this.$store.getters["".concat(this.resourceName, "/getOriginalFilter")](filter["class"]);
+      var originalValue = (originalFilter === null || originalFilter === void 0 ? void 0 : originalFilter.currentValue) ?? null;
       this.$store.commit("".concat(this.resourceName, "/updateFilterState"), {
         filterClass: filter["class"],
-        value: null
+        value: originalValue
       });
       this.handleFilterChanged(filter);
     },
@@ -408,7 +433,13 @@ __webpack_require__.r(__webpack_exports__);
         var filterIndex = this.persistedFilters[this.resourceName].findIndex(function (f) {
           return filter["class"] === f.filterClass;
         });
-        if (filterIndex == null || filterIndex < 0 || !this.persistedFilters[this.resourceName][filterIndex]) {
+        var isEmpty = this.isEmptyValue(updatedFilter.currentValue);
+
+        if (isEmpty) {
+          if (filterIndex != null && filterIndex >= 0) {
+            this.persistedFilters[this.resourceName].splice(filterIndex, 1);
+          }
+        } else if (filterIndex == null || filterIndex < 0 || !this.persistedFilters[this.resourceName][filterIndex]) {
           this.persistedFilters[this.resourceName].push({
             filterClass: filter["class"],
             value: updatedFilter.currentValue
@@ -437,10 +468,12 @@ __webpack_require__.r(__webpack_exports__);
     loadPersistedFromFilters: function loadPersistedFromFilters() {
       var _this3 = this;
       this.getFilters().forEach(function (filterItem) {
-        _this3.persistedFilters[_this3.resourceName].push({
-          filterClass: filterItem["class"],
-          value: filterItem.currentValue
-        });
+        if (!_this3.isEmptyValue(filterItem.currentValue)) {
+          _this3.persistedFilters[_this3.resourceName].push({
+            filterClass: filterItem["class"],
+            value: filterItem.currentValue
+          });
+        }
       });
       localStorage.setItem('PERSISTED_DETACHED_FILTERS', JSON.stringify(this.persistedFilters));
     },
