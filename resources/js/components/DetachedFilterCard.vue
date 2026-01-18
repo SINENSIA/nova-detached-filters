@@ -59,20 +59,8 @@
           v-show="i === activeTab"
           :key="'tab-content-' + i"
         >
-          <div class="w-full" v-for="item in group.filters" :key="item.key">
-            <NovaDetachedFilter
-              v-if="isFilterComponent(item)"
-              :width="'w-full'"
-              :filter="item"
-              :resource-name="resourceName"
-              @handle-filter-changed="handleFilterChanged"
-              @reset-filter="resetFilter"
-            />
-
-            <NovaDetachedFilter
-              v-else
-              v-for="filter in item.filters"
-              v-bind:key="filter.key"
+          <div class="w-full" v-for="filter in group.filters" :key="filter.key">
+            <nova-detached-filter
               :width="'w-full'"
               :filter="filter"
               :resource-name="resourceName"
@@ -88,7 +76,7 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           <div class="w-full" v-for="item in card.filters" :key="item.key">
             <!-- Single Filter -->
-            <NovaDetachedFilter
+            <nova-detached-filter
               v-if="isFilterComponent(item)"
               :width="'w-full'"
               :filter="item"
@@ -98,7 +86,7 @@
             />
 
             <!-- Filter Column -->
-            <NovaDetachedFilter
+            <nova-detached-filter
               v-else
               v-for="filter in item.filters"
               v-bind:key="filter.key"
@@ -116,17 +104,13 @@
 </template>
 
 <script>
-import { RouteParameters } from '../mixins';
-import InteractsWithQueryString from 'laravel-nova-mixins/InteractsWithQueryString';
-import PerPageable from 'laravel-nova-mixins/PerPageable';
-import Filterable from 'laravel-nova-mixins/Filterable';
+import { Filterable, RouteParameters, PerPageable, InteractsWithQueryString } from '../mixins';
 import ActionButton from './ActionButton';
-import NovaDetachedFilter from './DetachedFilter';
 import { LockIcon, ResetIcon, CollapseIcon } from './icons';
 
 export default {
   mixins: [Filterable, InteractsWithQueryString, PerPageable, RouteParameters],
-  components: { ActionButton, NovaDetachedFilter, LockIcon, ResetIcon, CollapseIcon },
+  components: { ActionButton, LockIcon, ResetIcon, CollapseIcon },
   props: ['card', 'resourceName', 'viaResource', 'viaRelationship'],
 
   data: () => ({
@@ -154,7 +138,7 @@ export default {
     if (!this.card.showPerPageInMenu) this.perPageDropdownStyle(true);
   },
 
-  unmounted() {
+  destroyed() {
     if (!this.card.showPerPageInMenu) this.perPageDropdownStyle(false);
   },
 
@@ -175,36 +159,28 @@ export default {
       return this.countActiveFilters(filters) > 0;
     },
 
-    isEmptyValue(value) {
-      if (value === undefined || value === null) return true;
-      if (Array.isArray(value)) return value.length === 0;
-      if (typeof value === 'string') return value.trim() === '';
-      if (typeof value === 'object') return Object.keys(value).length === 0;
-      return false;
+    flattenFilters(filters) {
+      return filters.reduce((acc, filter) => {
+        if (filter?.filters) return acc.concat(this.flattenFilters(filter.filters));
+        acc.push(filter);
+        return acc;
+      }, []);
     },
 
-    normalizeValue(value) {
-      if (value === undefined || value === null) return null;
-      if (Array.isArray(value)) return value.length ? value : null;
-      if (typeof value === 'string') {
-        const trimmed = value.trim();
-        return trimmed === '' ? null : trimmed;
-      }
-      if (typeof value === 'object') return Object.keys(value).length ? value : null;
-      return value;
+    isActiveFilterValue(value) {
+      if (value == null || value === '') return false;
+      if (Array.isArray(value)) return value.length > 0;
+      if (typeof value === 'object') return Object.keys(value).length > 0;
+      if (typeof value === 'boolean') return value;
+      return true;
     },
 
     countActiveFilters(filters) {
-      return filters.reduce((total, filter) => {
+      const flatFilters = this.flattenFilters(filters || []);
+      return flatFilters.reduce((total, filter) => {
         try {
           const filterInStore = this.$store.getters[`${this.resourceName}/getFilter`](filter.class);
-          const originalFilter = this.$store.getters[`${this.resourceName}/getOriginalFilter`](filter.class);
-          const originalValue = JSON.stringify(this.normalizeValue(originalFilter?.currentValue));
-          const currentValue = JSON.stringify(this.normalizeValue(filterInStore?.currentValue));
-          if (currentValue === originalValue || this.isEmptyValue(filterInStore?.currentValue)) {
-            return total;
-          }
-          return total + 1;
+          return total + (this.isActiveFilterValue(filterInStore?.currentValue) ? 1 : 0);
         } catch (e) {
           return total;
         }
@@ -217,11 +193,9 @@ export default {
     },
 
     resetFilter(filter) {
-      const originalFilter = this.$store.getters[`${this.resourceName}/getOriginalFilter`](filter.class);
-      const originalValue = originalFilter?.currentValue ?? null;
       this.$store.commit(`${this.resourceName}/updateFilterState`, {
         filterClass: filter.class,
-        value: originalValue,
+        value: null,
       });
 
       this.handleFilterChanged(filter);
@@ -254,15 +228,6 @@ export default {
       localStorage.setItem('COLLAPSED_DETACHED_FILTERS', JSON.stringify(this.collapsedResources));
     },
 
-    syncFilters() {
-      const encodedFilters = this.$store.getters[`${this.resourceName}/currentEncodedFilters`];
-      this.updateQueryString({
-        [this.filterParameter]: encodedFilters,
-      });
-
-      Nova.$emit('filter-changed');
-    },
-
     loadPersistedFilters() {
       this.persistedFilters[this.resourceName].forEach(filterItem => {
         this.$store.commit(`${this.resourceName}/updateFilterState`, {
@@ -281,13 +246,7 @@ export default {
         const updatedFilter = this.getFilter(filter.class);
         if (!updatedFilter) return;
         const filterIndex = this.persistedFilters[this.resourceName].findIndex(f => filter.class === f.filterClass);
-        const isEmpty = this.isEmptyValue(updatedFilter.currentValue);
-
-        if (isEmpty) {
-          if (filterIndex != null && filterIndex >= 0) {
-            this.persistedFilters[this.resourceName].splice(filterIndex, 1);
-          }
-        } else if (filterIndex == null || filterIndex < 0 || !this.persistedFilters[this.resourceName][filterIndex]) {
+        if (filterIndex == null || filterIndex < 0 || !this.persistedFilters[this.resourceName][filterIndex]) {
           this.persistedFilters[this.resourceName].push({
             filterClass: filter.class,
             value: updatedFilter.currentValue,
@@ -322,12 +281,10 @@ export default {
 
     loadPersistedFromFilters() {
       this.getFilters().forEach(filterItem => {
-        if (!this.isEmptyValue(filterItem.currentValue)) {
-          this.persistedFilters[this.resourceName].push({
-            filterClass: filterItem.class,
-            value: filterItem.currentValue,
-          });
-        }
+        this.persistedFilters[this.resourceName].push({
+          filterClass: filterItem.class,
+          value: filterItem.currentValue,
+        });
       });
 
       localStorage.setItem('PERSISTED_DETACHED_FILTERS', JSON.stringify(this.persistedFilters));
