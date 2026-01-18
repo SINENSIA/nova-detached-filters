@@ -60,7 +60,7 @@
           :key="'tab-content-' + i"
         >
           <div class="w-full" v-for="item in group.filters" :key="item.key">
-            <nova-detached-filter
+            <NovaDetachedFilter
               v-if="isFilterComponent(item)"
               :width="'w-full'"
               :filter="item"
@@ -69,7 +69,7 @@
               @reset-filter="resetFilter"
             />
 
-            <nova-detached-filter
+            <NovaDetachedFilter
               v-else
               v-for="filter in item.filters"
               v-bind:key="filter.key"
@@ -88,7 +88,7 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           <div class="w-full" v-for="item in card.filters" :key="item.key">
             <!-- Single Filter -->
-            <nova-detached-filter
+            <NovaDetachedFilter
               v-if="isFilterComponent(item)"
               :width="'w-full'"
               :filter="item"
@@ -98,7 +98,7 @@
             />
 
             <!-- Filter Column -->
-            <nova-detached-filter
+            <NovaDetachedFilter
               v-else
               v-for="filter in item.filters"
               v-bind:key="filter.key"
