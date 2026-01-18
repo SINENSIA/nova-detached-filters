@@ -2,13 +2,13 @@
   <div class="relative flex h-auto opacity-100 nova-detached-filter" :class="width">
     <component
       :resource-name="resourceName"
-      :key="filter.name"
+      :key="resourceName + ':' + filter.class"
       :filter-key="filter.class"
       :is="filter.component"
-      :lens="''"
+      :lens="null"
       class="py-2"
-      @input="$emit('handle-filter-changed', filter)"
       @change="$emit('handle-filter-changed', filter)"
+      @update:modelValue="$emit('handle-filter-changed', filter)"
     />
 
     <div class="absolute o1-right-3 o1-top-1 flex">
@@ -26,6 +26,9 @@ import { ResetIcon } from './icons';
 export default {
   components: { ActionButton, ResetIcon },
   props: ['filter', 'width', 'resourceName'],
+  mounted() {
+    console.log('[DetachedFilter] is=', this.filter?.component, 'class=', this.filter?.class);
+  },
 };
 </script>
 
