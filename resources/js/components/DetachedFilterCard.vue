@@ -241,6 +241,15 @@ export default {
       localStorage.setItem('COLLAPSED_DETACHED_FILTERS', JSON.stringify(this.collapsedResources));
     },
 
+    syncFilters() {
+      const encodedFilters = this.$store.getters[`${this.resourceName}/currentEncodedFilters`];
+      this.updateQueryString({
+        [this.filterParameter]: encodedFilters,
+      });
+
+      Nova.$emit('filter-changed');
+    },
+
     loadPersistedFilters() {
       this.persistedFilters[this.resourceName].forEach(filterItem => {
         this.$store.commit(`${this.resourceName}/updateFilterState`, {
