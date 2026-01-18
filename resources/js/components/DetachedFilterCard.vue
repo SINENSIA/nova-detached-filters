@@ -121,11 +121,12 @@ import InteractsWithQueryString from 'laravel-nova-mixins/InteractsWithQueryStri
 import PerPageable from 'laravel-nova-mixins/PerPageable';
 import Filterable from 'laravel-nova-mixins/Filterable';
 import ActionButton from './ActionButton';
+import NovaDetachedFilter from './DetachedFilter';
 import { LockIcon, ResetIcon, CollapseIcon } from './icons';
 
 export default {
   mixins: [Filterable, InteractsWithQueryString, PerPageable, RouteParameters],
-  components: { ActionButton, LockIcon, ResetIcon, CollapseIcon },
+  components: { ActionButton, NovaDetachedFilter, LockIcon, ResetIcon, CollapseIcon },
   props: ['card', 'resourceName', 'viaResource', 'viaRelationship'],
 
   data: () => ({
